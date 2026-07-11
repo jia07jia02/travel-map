@@ -52,7 +52,8 @@ header{position:fixed;top:0;left:0;right:0;height:var(--hh);background:var(--whi
 .hsrch input::placeholder{color:var(--ink-xl)}
 .btn-srch{border:none;background:var(--stamp);color:#fff;padding:0 10px;height:30px;cursor:pointer;font-size:11px;white-space:nowrap;flex-shrink:0;transition:opacity .15s}
 .btn-srch:hover{opacity:.85}
-.hright{margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0}
+.hright{margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:1;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.hright::-webkit-scrollbar{display:none}
 .hstat{font-size:10px;color:var(--ink-l);white-space:nowrap}
 .hbtn{display:flex;align-items:center;gap:3px;padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--ink-l);font-size:10px;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0}
 .hbtn:hover{border-color:var(--sage);color:var(--ink);background:var(--surface)}
