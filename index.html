@@ -226,7 +226,8 @@ header{position:fixed;top:0;left:0;right:0;height:var(--hh);background:var(--whi
 .mpop-btn:hover{border-color:var(--sage);color:var(--ink)}
 .map-hint{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:var(--white);border:1px solid var(--border);border-radius:20px;padding:6px 16px;font-size:11px;color:var(--ink-l);z-index:500;pointer-events:none;white-space:nowrap;box-shadow:0 4px 12px var(--shadow)}
 .map-legend{position:absolute;bottom:44px;right:10px;background:var(--white);border:1px solid var(--border);border-radius:6px;padding:8px 10px;z-index:500;pointer-events:none;box-shadow:0 4px 12px var(--shadow);max-width:140px;display:none}
-.leg-title{font-size:9px;letter-spacing:.12em;color:var(--ink-l);text-transform:uppercase;margin-bottom:5px}
+.leg-title{font-size:9px;letter-spacing:.12em;color:var(--ink-l);text-transform:uppercase;margin-bottom:5px;pointer-events:auto;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;user-select:none}
+.leg-chev{font-size:9px;flex-shrink:0}
 .leg-item{display:flex;align-items:center;gap:6px;margin-bottom:4px}
 .leg-item:last-child{margin-bottom:0}
 .leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
@@ -600,16 +601,17 @@ header{position:fixed;top:0;left:0;right:0;height:var(--hh);background:var(--whi
 
 /* RWD */
 @media(max-width:768px){
+  html,body{height:auto;min-height:100%;overflow:visible}
   :root{--panel-w:100vw;--sb-w:100vw;--hh:48px}
   header{padding:0 8px 0 12px;gap:5px}
   .hsrch{max-width:none;flex:1}
   .hbtn{padding:3px 6px;font-size:10px}
-  .app{flex-direction:column;overflow:auto;height:auto;min-height:100vh}
+  .app{flex-direction:column;overflow:visible;height:auto;min-height:100vh}
   #map{flex:none;height:44vh;width:100%}
   .sidebar{width:100%;flex:1;height:auto;border-left:none;border-top:1px solid var(--border);position:relative;overflow:visible}
   .lpanel{position:fixed;top:var(--hh);left:0;right:0;bottom:0;width:100%;border-right:none;z-index:1800}
   .pov{position:fixed;top:var(--hh);z-index:1700}
-  .cal-body.open{max-height:600px}
+  .cal-body.open{max-height:1200px}
   .slist{overflow-y:visible;flex:none}
   .modal{width:100%;border-radius:10px 10px 0 0;max-height:88vh}
   .mback{align-items:flex-end;padding:0}
@@ -1523,6 +1525,7 @@ var markers={}, arrows=[], polyL=null;
 var panMode=null, panSid=null;
 var pFiles=[], pStamp=null;
 var calY=2026, calM=4, calOpen=true, calYPick=false;
+var legendOpen=(function(){try{return localStorage.getItem('legendOpen')!=='0';}catch(e){return true;}})();
 var pIcon=ICONS[0], pColor=COLORS[0];
 var lbFiles=[], lbIdx=0, srchTimer=null;
 var curStep=1;
@@ -2023,7 +2026,8 @@ function drawTraj(ds){clearTraj();if(ds.length<2)return;var ll=ds.map(function(s
 function clearTraj(){arrows.forEach(function(m){map.removeLayer(m);});arrows=[];if(polyL){map.removeLayer(polyL);polyL=null;}}
 
 // Legend
-function renderLegend(){var u=[...new Set(spots.map(function(s){return s.catId;}))];var el=document.getElementById('mapLegend');if(!u.length||actDate!=='all'){el.style.display='none';return;}el.style.display='block';el.innerHTML='<div class="leg-title">圖例</div>'+u.map(function(cid){var c=getCat(cid);return'<div class="leg-item"><div class="leg-dot" style="background:'+c.color+'"></div>'+getCatIconEl(c,14)+'<div class="leg-name">'+c.name+'</div></div>';}).join('');}
+function renderLegend(){var u=[...new Set(spots.map(function(s){return s.catId;}))];var el=document.getElementById('mapLegend');if(!u.length||actDate!=='all'){el.style.display='none';return;}el.style.display='block';var items=legendOpen?u.map(function(cid){var c=getCat(cid);return'<div class="leg-item"><div class="leg-dot" style="background:'+c.color+'"></div>'+getCatIconEl(c,14)+'<div class="leg-name">'+c.name+'</div></div>';}).join(''):'';el.innerHTML='<div class="leg-title" onclick="APP.toggleLegend()">圖例<span class="leg-chev">'+(legendOpen?'▾':'▸')+'</span></div>'+items;}
+function toggleLegend(){legendOpen=!legendOpen;try{localStorage.setItem('legendOpen',legendOpen?'1':'0');}catch(e){}renderLegend();}
 
 // Calendar
 function renderCal(){
@@ -2328,7 +2332,7 @@ function openPanelSpot(id,fromDate){
   if(isCastle(spot)){
     var bl={'100':'🏯 日本100名城','zoku100':'🏯 續100名城','other':'📜 其他登城章'};
     var bL=spot.castleBook?(bl[spot.castleBook]||'—'):'尚未分類';
-    var sI=spot.castleStamp?'<img src="'+spot.castleStamp+'" alt="登城章">':'<div class="nocs">🏯</div>';
+    var sI=spot.castleStamp?'<img src="'+resolveImgUrl(spot.castleStamp)+'" alt="登城章">':'<div class="nocs">🏯</div>';
     csHTML='<div class="cs-section"><div class="cs-hd"><span class="cs-title">🏯 名城集印帳</span><button class="pbtn" onclick="APP.openSpotModal('+id+',1)">✏️ 編輯</button></div><div class="cs-bd"><div class="cs-img">'+sI+'</div><div class="cs-meta"><div class="cs-book">'+bL+'</div>'+(spot.date?'<div class="cs-date">📅 登城日：'+fmtD(spot.date)+'</div>':'')+(spot.castleStamp?'':'<div style="font-size:10px;color:var(--ink-xl);margin-top:4px">尚未上傳實體印章</div>')+'</div></div></div>';
   }
 
@@ -2680,7 +2684,7 @@ function openAlbumModal(spotId){
 }
 
 // Lightbox (full screen)
-function renderLB(){var f=lbFiles[lbIdx];if(!f)return;var c=document.getElementById('lboxMedia');c.innerHTML=isVid(f)?'<video class="lbox-vid" src="'+f.data+'" controls autoplay playsinline></video>':'<img class="lbox-img" src="'+f.data+'" alt="">';document.getElementById('lboxCap').textContent=f.caption||'';document.getElementById('lboxP').style.display=lbFiles.length>1?'':'none';document.getElementById('lboxN').style.display=lbFiles.length>1?'':'none';}
+function renderLB(){var f=lbFiles[lbIdx];if(!f)return;var c=document.getElementById('lboxMedia');c.innerHTML=isVid(f)?'<video class="lbox-vid" src="'+f.data+'" controls autoplay playsinline></video>':'<img class="lbox-img" src="'+resolveImgUrl(f.data)+'" alt="">';document.getElementById('lboxCap').textContent=f.caption||'';document.getElementById('lboxP').style.display=lbFiles.length>1?'':'none';document.getElementById('lboxN').style.display=lbFiles.length>1?'':'none';}
 document.getElementById('lboxX').addEventListener('click',function(){document.getElementById('lbox').classList.remove('open');document.getElementById('lboxMedia').innerHTML='';window._gcPhotoStamps=[];window._gcPhotoIdx=0;window._qPhotoItems=[];window._qPhotoIdx=0;});
 document.getElementById('lboxP').addEventListener('click',function(){
   if(window._qPhotoItems&&window._qPhotoItems.length>0){
@@ -2716,7 +2720,7 @@ function addFiles(fl){readFiles(fl,function(res){res.forEach(function(r){pFiles.
 
 // Castle stamp
 function attachStampListener(){var inp=document.getElementById('fStamp');if(!inp)return;inp.addEventListener('change',function(e){var file=e.target.files[0];if(!file)return;var r=new FileReader();r.onload=function(ev){pStamp=ev.target.result;refreshStampBox();};r.readAsDataURL(file);e.target.value='';});}
-function refreshStampBox(){var box=document.getElementById('csBox');if(!box)return;if(pStamp){box.innerHTML='<input type="file" id="fStamp" accept="image/*"><img src="'+pStamp+'" style="width:100%;height:100%;object-fit:contain;padding:3px">';}else{box.innerHTML='<input type="file" id="fStamp" accept="image/*"><div class="cu-ic">⬆️</div><div class="cu-lb">上傳印章</div>';}attachStampListener();}
+function refreshStampBox(){var box=document.getElementById('csBox');if(!box)return;if(pStamp){box.innerHTML='<input type="file" id="fStamp" accept="image/*"><img src="'+resolveImgUrl(pStamp)+'" style="width:100%;height:100%;object-fit:contain;padding:3px">';}else{box.innerHTML='<input type="file" id="fStamp" accept="image/*"><div class="cu-ic">⬆️</div><div class="cu-lb">上傳印章</div>';}attachStampListener();}
 
 // ── SPOT MODAL ─────────────────────────────────────────────────────
 function fillCats(){
@@ -3112,7 +3116,7 @@ function renderSbContent(){
     var spot=byName[castle.name];
     var hasPhoto=spot&&spot.castleStamp;
     var imgContent=hasPhoto
-      ?'<img src="'+spot.castleStamp+'" style="width:100%;height:100%;object-fit:cover;display:block">'
+      ?'<img src="'+resolveImgUrl(spot.castleStamp)+'" style="width:100%;height:100%;object-fit:cover;display:block">'
       :'<div class="sb-cell-lock"><div class="sb-lock-icon">🔒</div></div>';
 
     var dateStr=spot&&spot.date?fmtD(spot.date):'登城日期：＿＿年＿＿月＿＿日';
@@ -3237,7 +3241,7 @@ function renderGcRegion(book,regionName){
 
   function buildCard(s){
     var imgH=s.photo
-      ?'<img class="gc-stamp-img" src="'+s.photo+'" alt="'+s.name+'" onclick="event.stopPropagation();APP.gcViewPhoto(\''+s.id+'\')" style="cursor:zoom-in">'
+      ?'<img class="gc-stamp-img" src="'+resolveImgUrl(s.photo)+'" alt="'+s.name+'" onclick="event.stopPropagation();APP.gcViewPhoto(\''+s.id+'\')" style="cursor:zoom-in">'
       :'<div class="gc-stamp-ph" onclick="event.stopPropagation()" style="cursor:default">⛩</div>';
     return'<div class="gc-stamp-card" data-gsid="'+s.id+'" data-pref="'+s.pref+'" onclick="APP.gcEditGoshuin(\''+s.id+'\')">'+
       imgH+
@@ -3311,7 +3315,7 @@ window._qPhotoIdx=0;
 function renderQLightbox(){
   var items=window._qPhotoItems;
   var it=items[window._qPhotoIdx];if(!it)return;
-  document.getElementById('lboxMedia').innerHTML='<img class="lbox-img" src="'+it.photo+'" alt="'+it.name+'">';
+  document.getElementById('lboxMedia').innerHTML='<img class="lbox-img" src="'+resolveImgUrl(it.photo)+'" alt="'+it.name+'">';
   document.getElementById('lboxCap').textContent=it.name+(it.date?' · '+fmtD(it.date):'')+(it.note?' · '+it.note:'');
   document.getElementById('lboxP').style.display=items.length>1?'':'none';
   document.getElementById('lboxN').style.display=items.length>1?'':'none';
@@ -3338,7 +3342,7 @@ function renderGcLightbox(){
   var stamps=window._gcPhotoStamps;
   var s=stamps[window._gcPhotoIdx];if(!s)return;
   var c=document.getElementById('lboxMedia');
-  c.innerHTML='<img class="lbox-img" src="'+s.photo+'" alt="'+s.name+'">';
+  c.innerHTML='<img class="lbox-img" src="'+resolveImgUrl(s.photo)+'" alt="'+s.name+'">';
   document.getElementById('lboxCap').textContent=s.pref+' · '+s.name+(s.date?' · '+fmtD(s.date):'');
   document.getElementById('lboxP').style.display=stamps.length>1?'':'none';
   document.getElementById('lboxN').style.display=stamps.length>1?'':'none';
@@ -4328,6 +4332,7 @@ var APP={
   gcViewPhoto:      function(id){gcViewPhoto(id);},
   toggleCatPicker:  function(){toggleCatPicker();},
   toggleCalendar:   function(){toggleCalendar();},
+  toggleLegend:     function(){toggleLegend();},
   openAchieve:      function(){openAchieveModal();},
   addVisit:         function(id){
     var spot=spots.find(function(s){return s.id===id;});if(!spot)return;
