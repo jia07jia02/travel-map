@@ -622,12 +622,19 @@ header{position:fixed;top:0;left:0;right:0;height:var(--hh);background:var(--whi
   .sb-grid{grid-template-columns:repeat(3,1fr)}
   #goshuinModal .modal{width:100%}
   #stampBookModal .modal{width:100%}
+  #achieveModal .modal{width:100%}
+  .ach-wrap{flex-direction:column}
+  .ach-nav{width:100%;flex-direction:row;border-right:none;border-bottom:1px solid var(--border);padding:0;overflow-x:auto}
+  .ach-nav-item{flex:1;text-align:center;padding:10px 6px;border-left:none;border-bottom:3px solid transparent;white-space:nowrap;font-size:11px}
+  .ach-nav-item.active{border-left-color:transparent;border-bottom-color:var(--stamp)}
+  .qgrid{grid-template-columns:repeat(3,1fr)}
 }
 @media(max-width:480px){
   .igrid{grid-template-columns:repeat(6,1fr)}
   .gc-stamp-grid{grid-template-columns:repeat(2,1fr)}
   .region-grid{grid-template-columns:repeat(2,1fr)}
   .sb-grid{grid-template-columns:repeat(2,1fr)}
+  .qgrid{grid-template-columns:repeat(2,1fr)}
 }
 
 
@@ -2026,7 +2033,7 @@ function drawTraj(ds){clearTraj();if(ds.length<2)return;var ll=ds.map(function(s
 function clearTraj(){arrows.forEach(function(m){map.removeLayer(m);});arrows=[];if(polyL){map.removeLayer(polyL);polyL=null;}}
 
 // Legend
-function renderLegend(){var u=[...new Set(spots.map(function(s){return s.catId;}))];var el=document.getElementById('mapLegend');if(!u.length||actDate!=='all'){el.style.display='none';return;}el.style.display='block';var items=legendOpen?u.map(function(cid){var c=getCat(cid);return'<div class="leg-item"><div class="leg-dot" style="background:'+c.color+'"></div>'+getCatIconEl(c,14)+'<div class="leg-name">'+c.name+'</div></div>';}).join(''):'';el.innerHTML='<div class="leg-title" onclick="APP.toggleLegend()">圖例<span class="leg-chev">'+(legendOpen?'▾':'▸')+'</span></div>'+items;}
+function renderLegend(){var u=[...new Set(spots.map(function(s){return s.catId;}))];var el=document.getElementById('mapLegend');if(!u.length||actDate!=='all'){el.style.display='none';return;}el.style.display='block';var items=legendOpen?u.map(function(cid){var c=getCat(cid);return'<div class="leg-item"><div class="leg-dot" style="background:'+c.color+'"></div>'+getCatIconEl(c,14)+'<div class="leg-name">'+c.name+'</div></div>';}).join(''):'';el.innerHTML='<div class="leg-title" onclick="event.stopPropagation();APP.toggleLegend()">圖例<span class="leg-chev">'+(legendOpen?'▾':'▸')+'</span></div>'+items;}
 function toggleLegend(){legendOpen=!legendOpen;try{localStorage.setItem('legendOpen',legendOpen?'1':'0');}catch(e){}renderLegend();}
 
 // Calendar
