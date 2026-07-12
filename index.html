@@ -622,19 +622,12 @@ header{position:fixed;top:0;left:0;right:0;height:var(--hh);background:var(--whi
   .sb-grid{grid-template-columns:repeat(3,1fr)}
   #goshuinModal .modal{width:100%}
   #stampBookModal .modal{width:100%}
-  #achieveModal .modal{width:100%}
-  .ach-wrap{flex-direction:column}
-  .ach-nav{width:100%;flex-direction:row;border-right:none;border-bottom:1px solid var(--border);padding:0;overflow-x:auto}
-  .ach-nav-item{flex:1;text-align:center;padding:10px 6px;border-left:none;border-bottom:3px solid transparent;white-space:nowrap;font-size:11px}
-  .ach-nav-item.active{border-left-color:transparent;border-bottom-color:var(--stamp)}
-  .qgrid{grid-template-columns:repeat(3,1fr)}
 }
 @media(max-width:480px){
   .igrid{grid-template-columns:repeat(6,1fr)}
   .gc-stamp-grid{grid-template-columns:repeat(2,1fr)}
   .region-grid{grid-template-columns:repeat(2,1fr)}
   .sb-grid{grid-template-columns:repeat(2,1fr)}
-  .qgrid{grid-template-columns:repeat(2,1fr)}
 }
 
 
@@ -674,6 +667,17 @@ header{position:fixed;top:0;left:0;right:0;height:var(--hh);background:var(--whi
 .qfbtn.del:hover{border-color:var(--stamp);color:var(--stamp)}
 .qadd{margin:4px 0 16px;padding:8px 14px;background:transparent;border:1px dashed var(--border);border-radius:8px;font-size:12px;color:var(--ink-l);cursor:pointer;width:100%;transition:all .15s;font-family:inherit}
 .qadd:hover{border-color:var(--sage);color:var(--ink);background:var(--surface)}
+@media(max-width:768px){
+  #achieveModal .modal{width:100%}
+  .ach-wrap{flex-direction:column}
+  .ach-nav{width:100%;flex-direction:row;border-right:none;border-bottom:1px solid var(--border);padding:0;overflow-x:auto}
+  .ach-nav-item{flex:1;text-align:center;padding:10px 6px;border-left:none;border-bottom:3px solid transparent;white-space:nowrap;font-size:11px}
+  .ach-nav-item.active{border-left-color:transparent;border-bottom-color:var(--stamp)}
+  .qgrid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:480px){
+  .qgrid{grid-template-columns:repeat(2,1fr)}
+}
 .qi-photo-wrap{width:100%;aspect-ratio:4/3;background:var(--surface);border:1px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;margin-bottom:4px}
 .qi-photo-wrap img{width:100%;height:100%;object-fit:cover}
 .qi-photo-ph{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--ink-xl);font-size:12px}
