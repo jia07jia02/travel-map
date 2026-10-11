@@ -1511,7 +1511,7 @@ var MONTHS=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10�
 
 // 8 Japan regions with distinct colors + prefectures
 var REGIONS=[
-  {id:'r1',name:'北海道地方',color:'#5B8DB8',prefs:['北海道'],sub:'道北・道中・道東・道南'},
+  {id:'r1',name:'北海道地方',color:'#5B8DB8',prefs:['道北','道中','道東','道南'],sub:'道北・道中・道東・道南'},
   {id:'r2',name:'東北地方',  color:'#7BA05B',prefs:['青森県','岩手県','宮城県','秋田県','山形県','福島県'],sub:'青森県・岩手県・宮城県\n秋田県・山形県・福島県'},
   {id:'r3',name:'関東地方',  color:'#C0392B',prefs:['東京都','千葉県','神奈川県','埼玉県','茨城県','栃木県','群馬県'],sub:'東京都・千葉県・神奈川県\n埼玉県・茨城県・栃木県・群馬県'},
   {id:'r4',name:'中部地方',  color:'#E67E22',prefs:['新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県'],sub:'新潟県・富山県・石川県\n福井県・山梨県・長野県\n岐阜県・静岡県・愛知県'},
@@ -1939,6 +1939,14 @@ function _versionLt(a,b){
 }
 
 function getRegionByName(name){return REGIONS.find(function(r){return r.name===name;})||null;}
+// Hokkaido is split into areas (道北/道中/道東/道南) instead of prefectures.
+function prefLabel(regionName){return regionName==='北海道地方'?'區域':'縣市';}
+// A region's prefecture/area list plus any older values already stored in data (e.g. the former single 「北海道」).
+function regionPrefOptions(regionName,existing){
+  var reg=getRegionByName(regionName),out=reg?reg.prefs.slice():[];
+  (existing||[]).forEach(function(p){if(p&&out.indexOf(p)<0)out.push(p);});
+  return out;
+}
 function getRegionColor(name){var r=getRegionByName(name);return r?r.color:'#7F8C8D';}
 
 // ── BACKUP / RESTORE ─────────────────────────────────────────────
@@ -3387,14 +3395,14 @@ function renderGcRegion(book,regionName){
     var grid=document.getElementById('gcStampGrid');if(!grid)return;
     grid.innerHTML=filtered.length
       ?filtered.map(buildCard).join('')
-      :'<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--ink-xl);font-size:12px;line-height:2">此縣尚無印章記錄</div>';
+      :'<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--ink-xl);font-size:12px;line-height:2">此'+(reg.name==='北海道地方'?'區域':'縣')+'尚無印章記錄</div>';
   }
 
   var prefPillsHTML='';
   if(reg.prefs.length>1){
     prefPillsHTML='<div class="pref-pills">';
     prefPillsHTML+='<div class="pref-pill active" data-pref="" style="background:'+reg.color+';border-color:'+reg.color+';color:#fff">全部</div>';
-    reg.prefs.forEach(function(p){
+    regionPrefOptions(regionName,stamps.map(function(s){return s.pref;})).forEach(function(p){
       var has=prefSet.has(p);
       prefPillsHTML+='<div class="pref-pill'+(has?'':' empty')+'" data-pref="'+p+'">'+p+'</div>';
     });
@@ -3505,7 +3513,7 @@ function openGoshuinEditModal(bookId,regionName,editId){
 
   var reg=regionName||(existStamp?existStamp.region:'');
   document.getElementById('gcRegion').value=reg;
-  updateGcPrefOptions(reg);
+  updateGcPrefOptions(reg,existStamp?existStamp.pref:'');
   if(existStamp){document.getElementById('gcPref').value=existStamp.pref||'';}
   document.getElementById('gcName').value=existStamp?existStamp.name||'':'';
 
@@ -3539,10 +3547,10 @@ function refreshGcEditPhoto(){
 }
 
 // Prefecture dropdown update (kept for compat)
-function updateGcPrefOptions(regionName){
-  var sel=document.getElementById('gcPref');var reg=getRegionByName(regionName);
-  sel.innerHTML='<option value="">選擇縣市</option>';
-  if(reg){reg.prefs.forEach(function(p){var opt=document.createElement('option');opt.value=p;opt.textContent=p;sel.appendChild(opt);});}
+function updateGcPrefOptions(regionName,keepVal){
+  var sel=document.getElementById('gcPref');
+  sel.innerHTML='<option value="">選擇'+prefLabel(regionName)+'</option>';
+  regionPrefOptions(regionName,[keepVal]).forEach(function(p){var opt=document.createElement('option');opt.value=p;opt.textContent=p;sel.appendChild(opt);});
 }
 document.getElementById('gcRegion').addEventListener('change',function(){updateGcPrefOptions(this.value);});
 
@@ -3592,7 +3600,7 @@ document.getElementById('gcEditSave').addEventListener('click',function(){
   var labels=getGcLabels(book?book.name:'');
   var name=document.getElementById('gcName').value.trim();if(!name){alert('請輸入'+labels.nameLabel);return;}
   var reg=document.getElementById('gcRegion').value;if(!reg){alert('請選擇地區');return;}
-  var pref=document.getElementById('gcPref').value;if(!pref){alert('請選擇縣市');return;}
+  var pref=document.getElementById('gcPref').value;if(!pref){alert('請選擇'+prefLabel(reg));return;}
   var dateVal2=document.getElementById('gcDate').dataset.val||'';
   var stamp={id:gcEditId||'gs'+(nextGsid++),bookId:gcEditBookId,region:reg,pref:pref,name:name,date:dateVal2,photo:gcStampPhoto};
   gcBooks.forEach(function(b){
@@ -3730,7 +3738,7 @@ function renderShrineRegion(c){
   var pills='';
   if(reg.prefs.length>1){
     pills='<div class="pref-pills"><div class="pref-pill'+(shActivePref===''?' active':'')+'" '+(shActivePref===''?'style="background:'+reg.color+';border-color:'+reg.color+';color:#fff" ':'')+'onclick="APP.shSetPref(\'\')">全部</div>';
-    reg.prefs.forEach(function(p){
+    regionPrefOptions(reg.name,all.map(function(s){return s.pref;})).forEach(function(p){
       var has=prefSet.has(p),act=shActivePref===p;
       pills+='<div class="pref-pill'+(has?'':' empty')+(act?' active':'')+'" '+(act?'style="background:'+reg.color+';border-color:'+reg.color+';color:#fff" ':'')+(has?'onclick="APP.shSetPref(\''+p+'\')"':'')+'>'+p+'</div>';
     });
@@ -3743,7 +3751,7 @@ function renderShrineRegion(c){
       '<button class="pbtn" style="margin-left:auto;border-color:'+reg.color+';color:'+reg.color+'" onclick="APP.shNew()">＋ 新增神社・寺廟</button>'+
     '</div>'+pills+
     '<div class="sh-grid">'+(list.length?list.map(shCardHTML).join(''):
-      '<div class="sh-empty" style="line-height:2">'+(all.length?'此縣尚無神社・寺廟':'尚未記錄'+reg.name+'的神社・寺廟<br>點擊右上角「新增神社・寺廟」開始記錄！')+'</div>')+'</div>';
+      '<div class="sh-empty" style="line-height:2">'+(all.length?'此'+(reg.name==='北海道地方'?'區域':'縣')+'尚無神社・寺廟':'尚未記錄'+reg.name+'的神社・寺廟<br>點擊右上角「新增神社・寺廟」開始記錄！')+'</div>')+'</div>';
 }
 
 function shItemCardHTML(sh,it){
@@ -3800,8 +3808,8 @@ function shItemView(shId,itId){
 // ── SHRINE EDIT MODAL ───────────────────────────────────────────
 function shFillPrefs(regionName,sel){
   var s=document.getElementById('shPref'),reg=getRegionByName(regionName);
-  s.innerHTML='<option value="">選擇縣市</option>';
-  if(reg)reg.prefs.forEach(function(p){var o=document.createElement('option');o.value=p;o.textContent=p;s.appendChild(o);});
+  s.innerHTML='<option value="">選擇'+prefLabel(regionName)+'</option>';
+  regionPrefOptions(regionName,[sel]).forEach(function(p){var o=document.createElement('option');o.value=p;o.textContent=p;s.appendChild(o);});
   s.value=sel||'';
 }
 function shFillSpotOptions(selectedId,editingShrineId){
@@ -3854,7 +3862,7 @@ document.getElementById('shrineEditModal').addEventListener('click',function(e){
 document.getElementById('shEditSave').addEventListener('click',function(){
   var name=document.getElementById('shName').value.trim();if(!name){alert('請輸入名稱');return;}
   var region=document.getElementById('shRegion').value;if(!region){alert('請選擇地區');return;}
-  var pref=document.getElementById('shPref').value;if(!pref){alert('請選擇縣市');return;}
+  var pref=document.getElementById('shPref').value;if(!pref){alert('請選擇'+prefLabel(region));return;}
   var kind=document.getElementById('shKind').value;
   var note=document.getElementById('shNote').value.trim();
   var sv=document.getElementById('shSpot').value;
