@@ -785,6 +785,25 @@ header{position:fixed;top:0;left:0;right:0;height:var(--hh);background:var(--whi
 .gc-book-title .gc-bt-name{flex:1}
 @media(max-width:700px){.sh-grid{grid-template-columns:repeat(2,1fr)}#shrineModal .modal{width:100%}}
 .sh-cover.tall,.sh-cover-ph.tall{aspect-ratio:3/4}
+
+/* ══ STATION STAMPS (駅スタンプ) ═════════════════════════════════ */
+#stationEditModal{z-index:5200}
+#stationEditModal .modal{width:540px}
+.sh-cover.sq,.sh-cover-ph.sq{aspect-ratio:1/1}
+.st-ent{border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px;background:var(--surface)}
+.st-ent-hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.st-seg{display:inline-flex;border:1px solid var(--border);border-radius:5px;overflow:hidden;flex-shrink:0}
+.st-seg span{padding:4px 12px;font-size:12px;cursor:pointer;color:var(--ink-l);background:var(--white)}
+.st-seg span.on{background:var(--ink);color:#fff}
+.st-ent-hd .st-date{width:140px;font-size:12px;padding:5px 8px}
+.st-ent-del{margin-left:auto;cursor:pointer;font-size:13px;opacity:.55;padding:2px 4px}
+.st-ent-del:hover{opacity:1}
+.st-note{width:100%;margin-top:8px;font-size:12px}
+.st-spot{border-color:rgba(74,96,128,.3);background:rgba(74,96,128,.04)}
+.st-spot .sh-spot-hd{background:rgba(74,96,128,.08);border-bottom-color:rgba(74,96,128,.2)}
+.st-spot .sh-spot-title{color:#4A6080}
+#stnEntries input,.st-ent input{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:6px 9px;font-family:inherit;color:var(--ink);outline:none}
+.st-ent input:focus{border-color:var(--sage);background:var(--white)}
 </style>
 </head>
 <body>
@@ -1212,6 +1231,36 @@ header{position:fixed;top:0;left:0;right:0;height:var(--hh);background:var(--whi
   </div>
 </div>
 
+
+<!-- ══ STATION STAMP EDIT MODAL (駅スタンプ) ══ -->
+<div class="mback" id="stationEditModal">
+  <div class="modal">
+    <div class="mhd"><div class="mtitle" id="stnTitle">新增駅スタンプ</div><button class="mx" id="stnX">×</button></div>
+    <div class="mscroll"><div class="mbody">
+      <div class="field"><label>車站名稱</label><input type="text" id="stnName" placeholder="例：東京駅"></div>
+      <div class="field"><label>路線／鐵道公司（選填）</label><input type="text" id="stnLine" list="stnLineList" placeholder="例：JR東日本・山手線"><datalist id="stnLineList"></datalist></div>
+      <div class="field"><label>地點</label>
+        <div class="gc-loc-row">
+          <select class="gc-region-sel" id="stnRegion"></select>
+          <select class="gc-pref-sel" id="stnPref"><option value="">選擇縣市</option></select>
+        </div>
+      </div>
+      <div class="field"><label>連結地圖景點（分類為車站的景點）</label>
+        <select id="stnSpot"><option value="">不連結</option></select></div>
+      <div class="field"><label>印章紀錄</label>
+        <div id="stnEntries"></div>
+        <span class="sh-addurl" id="stnAddEntry">＋ 新增一筆印章</span>
+      </div>
+      <div class="mact">
+        <button class="mbtn" id="stnMap" style="display:none;margin-right:auto">📍 在地圖上查看</button>
+        <button class="mbtn del" id="stnDel" style="display:none">刪除</button>
+        <button class="btn-cancel" id="stnCancel">取消</button>
+        <button class="btn-save" id="stnSave">儲存</button>
+      </div>
+    </div></div>
+  </div>
+</div>
+
 <!-- LIGHTBOX -->
 <div class="lbox" id="lbox">
   <button class="lbox-x" id="lboxX">×</button>
@@ -1459,7 +1508,7 @@ header{position:fixed;top:0;left:0;right:0;height:var(--hh);background:var(--whi
 </div>
 
 <script>
-var APP_VERSION='1.5';
+var APP_VERSION='1.6';
 
 var DEF_QUESTS=[
   {id:'q1',icon:'⛩',name:'東京十社巡禮',desc:'收集紀念繪馬，共 10 社',items:[
@@ -1612,8 +1661,8 @@ function dbG(k){return new Promise(function(res,rej){var r=db.transaction('kv','
 function dbS(k,v){return new Promise(function(res,rej){var r=db.transaction('kv','readwrite').objectStore('kv').put(v,k);r.onsuccess=function(){res();};r.onerror=function(e){rej(e.target.error);};});}
 
 // ── STATE ─────────────────────────────────────────────────────────
-var cats=[], spots=[], gcBooks=[], quests=[], certificates=[], journeys=[], steps={}, shrines=[];
-var nextShid=1, nextItid=1;
+var cats=[], spots=[], gcBooks=[], quests=[], certificates=[], journeys=[], steps={}, shrines=[], stations=[];
+var nextShid=1, nextItid=1, nextStid=1, nextSkid=1;
 var nextSid=1, nextCid=100, nextGbid=10, nextGsid=100, nextQid=10, nextQIid=100, nextCertId=10, nextJid=10;
 var pendLL=null, editSid=null, actFilt='all', actDate='all';
 var markers={}, arrows=[], polyL=null;
@@ -1698,7 +1747,7 @@ function isCastle(s){
     return name===c.name||name.endsWith(c.name);
   });
 }
-function saveDB(){return Promise.all([dbS('cats',JSON.stringify(cats)),dbS('spots',JSON.stringify(spots)),dbS('gcBooks',JSON.stringify(gcBooks)),dbS('quests',JSON.stringify(quests)),dbS('certificates',JSON.stringify(certificates)),dbS('journeys',JSON.stringify(journeys)),dbS('steps',JSON.stringify(steps)),dbS('shrines',JSON.stringify(shrines))]).catch(function(e){alert('儲存失敗：'+e.message);});}
+function saveDB(){return Promise.all([dbS('cats',JSON.stringify(cats)),dbS('spots',JSON.stringify(spots)),dbS('gcBooks',JSON.stringify(gcBooks)),dbS('quests',JSON.stringify(quests)),dbS('certificates',JSON.stringify(certificates)),dbS('journeys',JSON.stringify(journeys)),dbS('steps',JSON.stringify(steps)),dbS('shrines',JSON.stringify(shrines)),dbS('stations',JSON.stringify(stations))]).catch(function(e){alert('儲存失敗：'+e.message);});}
 function rgba(hex,a){var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return'rgba('+r+','+g+','+b+','+a+')';}
 function fmtD(d){if(!d)return'';var p=d.split('-');return p[0]+'年'+parseInt(p[1])+'月'+parseInt(p[2])+'日';}
 function fmtDShort(d){if(!d)return'';var p=d.split('-');return parseInt(p[1])+'/'+parseInt(p[2]);}
@@ -1847,7 +1896,8 @@ function migrateImportedData(jsonData){
     certificates: jsonData.certificates||[],
     journeys: jsonData.journeys||[],
     steps: jsonData.steps||{},
-    shrines: jsonData.shrines||[]
+    shrines: jsonData.shrines||[],
+    stations: jsonData.stations||[]
   };
 
   // ── Version upgrade chain ──────────────────────────────────────
@@ -1968,7 +2018,8 @@ document.getElementById('btnBackup').addEventListener('click',function(){
     certificates:certificates,
     journeys:journeys,
     steps:steps,
-    shrines:shrines
+    shrines:shrines,
+    stations:stations
   };
   var b=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   var u=URL.createObjectURL(b);var a=document.createElement('a');
@@ -2031,7 +2082,7 @@ document.getElementById('restoreInput').addEventListener('change',function(e){
           console.log('[Restore] spots saved OK ('+sizeMB+' MB)');
           return dbS('gcBooks',JSON.stringify(migrated.gcBooks));
         })
-        .then(function(){return dbS('quests',JSON.stringify(migrated.quests||[]));}).then(function(){return dbS('certificates',JSON.stringify(migrated.certificates||[]));}).then(function(){return dbS('journeys',JSON.stringify(migrated.journeys||[]));}).then(function(){return dbS('steps',JSON.stringify(migrated.steps||{}));}).then(function(){return dbS('shrines',JSON.stringify(migrated.shrines||[]));}).then(function(){
+        .then(function(){return dbS('quests',JSON.stringify(migrated.quests||[]));}).then(function(){return dbS('certificates',JSON.stringify(migrated.certificates||[]));}).then(function(){return dbS('journeys',JSON.stringify(migrated.journeys||[]));}).then(function(){return dbS('steps',JSON.stringify(migrated.steps||{}));}).then(function(){return dbS('shrines',JSON.stringify(migrated.shrines||[]));}).then(function(){return dbS('stations',JSON.stringify(migrated.stations||[]));}).then(function(){
           console.log('[Restore] gcBooks saved OK');
           alert('還原成功！\n備份版本：v'+rawVer+'（'+exportedAt+'）\n共匯入 '+migrated.spots.length+' 個景點、'+migrated.cats.length+' 個分類。\n即將重新整理。');
           location.reload();
@@ -2539,6 +2590,7 @@ function openPanelSpot(id,fromDate){
       '</div>'+
       csHTML+
       shSpotSectionHTML(spot)+
+      stSpotSectionHTML(spot)+
       '<div class="pdiv"></div>'+
       noteHTML+
       '<div class="pdiv"></div>'+
@@ -2671,7 +2723,7 @@ function renderList(){
     var tc=pin?(isVid(pin)?'<video src="'+resolveImgUrl(pin.data)+'" muted style="width:100%;height:100%;object-fit:cover"></video>':'<img src="'+resolveImgUrl(pin.data)+'" alt="'+spot.name+'">'):(getCatIconEl(cat,22));
     var cb=cnt>1?'<div class="spcnt">'+cnt+'</div>':'';
     var tl=spot.visitTime?'<span class="stime">⏰'+spot.visitTime+'</span>':'';
-    var cs=isCastle(spot)&&spot.castleBook?'<span style="font-size:8px;color:#7B5E2A;margin-left:2px">🏯</span>':'';if(shrineBySpot(spot.id))cs+='<span style="font-size:9px;color:#C0604A;margin-left:2px" title="已有授与品紀錄">⛩</span>';
+    var cs=isCastle(spot)&&spot.castleBook?'<span style="font-size:8px;color:#7B5E2A;margin-left:2px">🏯</span>':'';if(shrineBySpot(spot.id))cs+='<span style="font-size:9px;color:#C0604A;margin-left:2px" title="已有授与品紀錄">⛩</span>';if(stationBySpot(spot.id))cs+='<span style="font-size:9px;margin-left:2px" title="已有駅スタンプ紀錄">🚉</span>';
     return'<div class="si" data-id="'+spot.id+'"><div class="sth-wrap"><div class="sth">'+tc+'</div>'+cb+'</div><div class="sinfo"><div class="stagrow"><div class="stagdot" style="background:'+cat.color+'"></div><div class="stag" style="color:'+cat.color+'">'+cat.name+'</div>'+tl+cs+'</div><div class="sname">'+spot.name+'</div><div class="ssnip">'+(spot.note||'尚無心得記錄。')+'</div></div><div class="sright"><div class="sarrow" style="color:'+cat.color+'">›</div><button class="sbdel" data-id="'+spot.id+'" title="刪除">🗑️</button></div></div>';
   }).join('');
   list.querySelectorAll('.si').forEach(function(el){el.addEventListener('click',function(e){if(e.target.closest('.sbdel'))return;var id=+el.dataset.id;var s=spots.find(function(x){return x.id===id;});if(s&&markers[id]){if(!map.hasLayer(markers[id]))markers[id].addTo(map);map.flyTo([s.lat,s.lng],Math.max(map.getZoom(),14),{duration:.6});setTimeout(function(){markers[id].openPopup();},650);}hlSb(id);openPanelSpot(id);});});
@@ -3213,10 +3265,12 @@ function renderSbTabs(){
   var tabs=document.getElementById('sbTabs');
   tabs.innerHTML=
     '<div class="gc-tab'+(sbActiveTab==='sb100'?' active':'')+'" onclick="APP.sbSetTab(\'sb100\')">日本 100 名城</div>'+
-    '<div class="gc-tab'+(sbActiveTab==='sbz100'?' active':'')+'" onclick="APP.sbSetTab(\'sbz100\')">続 100 名城</div>';
+    '<div class="gc-tab'+(sbActiveTab==='sbz100'?' active':'')+'" onclick="APP.sbSetTab(\'sbz100\')">続 100 名城</div>'+
+    '<div class="gc-tab'+(sbActiveTab==='sbst'?' active':'')+'" onclick="APP.sbSetTab(\'sbst\')">駅スタンプ</div>';
 }
 
 function renderSbContent(){
+  if(sbActiveTab==='sbst'){renderStationTab();return;}
   var castleList=sbActiveTab==='sb100'?JAPAN_100_CASTLES:JAPAN_ZOKU100_CASTLES;
   var bookKey=sbActiveTab==='sb100'?'100':'zoku100';
 
@@ -4006,6 +4060,305 @@ function shSpotSectionHTML(spot){
   }
   return'<div class="sh-spot-sec"><div class="sh-spot-hd"><span class="sh-spot-title">⛩ 授与品</span><button class="pbtn" onclick="APP.shCreateFromSpot('+spot.id+')">＋ 建立</button></div>'+
     '<div class="sh-spot-bd">尚未建立授与品紀錄。</div></div>';
+}
+
+
+// ══ STATION STAMPS (駅スタンプ) ═══════════════════════════════════
+// stations[] = [{id,name,line,region,pref,spotId|null,
+//                stamps:[{id,type:'實體'|'ekitag',date,note,photos:[{data,caption}]}]}]
+var stFilterRegion='', stFilterPref='', stEditId=null, stEntries=[];
+
+function stGet(id){return stations.find(function(s){return s.id===id;})||null;}
+function stationBySpot(spotId){return stations.find(function(s){return s.spotId===spotId;})||null;}
+function stIsStationSpot(s){return s&&s.catId==='c15';}
+function stCounts(st){var c={p:0,e:0};st.stamps.forEach(function(x){if(x.type==='ekitag')c.e++;else c.p++;});return c;}
+function stPhotoCount(st){var n=0;st.stamps.forEach(function(x){n+=(x.photos||[]).filter(function(p){return p.data;}).length;});return n;}
+function stCover(st){
+  for(var i=0;i<st.stamps.length;i++){var p=st.stamps[i].photos||[];for(var j=0;j<p.length;j++)if(p[j].data)return p[j].data;}
+  return null;
+}
+function stLatestDate(st){var d='';st.stamps.forEach(function(x){if(x.date&&x.date>d)d=x.date;});return d;}
+function stNormName(n){return String(n||'').trim().replace(/(車站|駅|站)$/,'');}
+
+// ── TAB (inside the スタンプ帳 modal) ────────────────────────────
+function stPillStyle(color){return'style="background:'+color+';border-color:'+color+';color:#fff" ';}
+function stCardHTML(st){
+  var cv=stCover(st),cnt=stCounts(st),pc=stPhotoCount(st),d=stLatestDate(st);
+  var img=cv
+    ?'<img class="sh-cover sq" src="'+escH(resolveImgUrl(cv))+'" alt="" style="cursor:zoom-in" onclick="event.stopPropagation();APP.stView(\''+st.id+'\')" onerror="this.style.opacity=.3">'
+    :'<div class="sh-cover-ph sq">🚉</div>';
+  return'<div class="sh-card sh-item" onclick="APP.stEdit(\''+st.id+'\')">'+img+
+    (pc>1?'<div class="sh-item-cnt">'+pc+'</div>':'')+
+    '<div class="sh-body"><div class="sh-name">'+escH(st.name)+'</div>'+
+    (st.line?'<div class="sh-meta" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escH(st.line)+'</div>':'')+
+    '<div class="sh-meta">'+(d?fmtD(d):'未記錄日期')+'</div>'+
+    '<div style="margin-top:4px">'+(cnt.p?'<span class="sh-tag" style="background:#C0604A">實體</span>':'')+(cnt.e?'<span class="sh-tag" style="background:#4A6080">ekitag</span>':'')+'</div></div></div>';
+}
+function renderStationTab(){
+  var c=document.getElementById('sbContent');
+  c.style.padding='0';c.style.display='flex';c.style.flexDirection='column';
+  var nP=stations.filter(function(s){return s.stamps.some(function(x){return x.type!=='ekitag';});}).length;
+  var nE=stations.filter(function(s){return s.stamps.some(function(x){return x.type==='ekitag';});}).length;
+  function metric(n,label,col){return'<div style="text-align:center"><div style="font-family:Noto Serif JP,serif;font-size:22px;font-weight:600;color:'+col+'">'+n+'</div><div style="font-size:10px;color:var(--ink-l);margin-top:2px">'+label+'</div></div>';}
+  var bar='<div style="display:flex;align-items:center;gap:18px;padding:14px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--white)">'+
+    metric(stations.length,'已收集車站','#7B5E2A')+metric(nP,'實體章','#C0604A')+metric(nE,'ekitag','#4A6080')+
+    '<button class="pbtn" style="margin-left:auto" onclick="APP.stNew()">＋ 新增駅スタンプ</button></div>';
+
+  // region pills
+  var pills='<div class="pref-pills"><div class="pref-pill'+(stFilterRegion===''?' active':'')+'" '+(stFilterRegion===''?stPillStyle('#7B5E2A'):'')+'onclick="APP.stSetRegion(\'\')">全部地區</div>';
+  REGIONS.forEach(function(r){
+    var n=stations.filter(function(s){return s.region===r.name;}).length,act=stFilterRegion===r.name;
+    pills+='<div class="pref-pill'+(n?'':' empty')+(act?' active':'')+'" '+(act?stPillStyle(r.color):'')+(n?'onclick="APP.stSetRegion(\''+r.name+'\')"':'')+'>'+r.name.replace('地方','')+'</div>';
+  });
+  pills+='</div>';
+  // prefecture / area pills for the chosen region
+  var reg=stFilterRegion?getRegionByName(stFilterRegion):null;
+  if(reg){
+    var inReg=stations.filter(function(s){return s.region===reg.name;});
+    var prefs=regionPrefOptions(reg.name,inReg.map(function(s){return s.pref;}));
+    if(prefs.length>1){
+      pills+='<div class="pref-pills"><div class="pref-pill'+(stFilterPref===''?' active':'')+'" '+(stFilterPref===''?stPillStyle(reg.color):'')+'onclick="APP.stSetPref(\'\')">全部</div>';
+      prefs.forEach(function(p){
+        var n=inReg.filter(function(s){return s.pref===p;}).length,act=stFilterPref===p;
+        pills+='<div class="pref-pill'+(n?'':' empty')+(act?' active':'')+'" '+(act?stPillStyle(reg.color):'')+(n?'onclick="APP.stSetPref(\''+p+'\')"':'')+'>'+p+'</div>';
+      });
+      pills+='</div>';
+    }
+  }
+  // list
+  var list=stations.filter(function(s){return(!stFilterRegion||s.region===stFilterRegion)&&(!stFilterPref||s.pref===stFilterPref);}).slice().sort(function(a,b){
+    var ra=REGIONS.findIndex(function(r){return r.name===a.region;}),rb=REGIONS.findIndex(function(r){return r.name===b.region;});
+    if(ra!==rb)return ra-rb;
+    var rg=getRegionByName(a.region),ai=rg?rg.prefs.indexOf(a.pref):-1,bi=rg?rg.prefs.indexOf(b.pref):-1;
+    if(ai<0)ai=999;if(bi<0)bi=999;
+    if(ai!==bi)return ai-bi;
+    return String(a.name).localeCompare(String(b.name),'ja');
+  });
+  var grid='<div class="sh-grid">'+(list.length?list.map(stCardHTML).join(''):
+    '<div class="sh-empty" style="line-height:2">'+(stations.length?'這個範圍還沒有車站':'還沒有駅スタンプ<br>點擊右上角「新增駅スタンプ」開始記錄！')+'</div>')+'</div>';
+  c.innerHTML=bar+'<div style="flex:1;overflow-y:auto;padding:14px 18px;scrollbar-width:thin;scrollbar-color:var(--border) transparent">'+pills+grid+'</div>';
+}
+function stView(id){
+  var st=stGet(id);if(!st)return;
+  var files=[];
+  st.stamps.forEach(function(x){
+    (x.photos||[]).forEach(function(p){
+      if(!p.data)return;
+      files.push({type:'image',data:resolveImgUrl(p.data),caption:st.name+' · '+x.type+(x.date?' · '+fmtD(x.date):'')+(x.note?' · '+x.note:'')});
+    });
+  });
+  if(!files.length)return;
+  window._gcPhotoStamps=[];window._qPhotoItems=[];
+  lbFiles=files;lbIdx=0;renderLB();
+  document.getElementById('lbox').classList.add('open');
+}
+
+// ── EDIT MODAL ──────────────────────────────────────────────────
+function stFillPrefs(regionName,sel){
+  var s=document.getElementById('stnPref');
+  s.innerHTML='<option value="">選擇'+prefLabel(regionName)+'</option>';
+  regionPrefOptions(regionName,[sel]).forEach(function(p){var o=document.createElement('option');o.value=p;o.textContent=p;s.appendChild(o);});
+  s.value=sel||'';
+}
+function stFillSpotOptions(selectedId,editingId){
+  var s=document.getElementById('stnSpot');
+  s.innerHTML='<option value="">不連結</option>';
+  spots.filter(function(sp){
+    if(!stIsStationSpot(sp))return false;
+    var other=stationBySpot(sp.id);
+    return !other||other.id===editingId;
+  }).sort(function(a,b){return String(a.name).localeCompare(String(b.name),'ja');}).forEach(function(sp){
+    var o=document.createElement('option');o.value=String(sp.id);o.textContent=sp.name;s.appendChild(o);
+  });
+  var want=selectedId!=null?String(selectedId):'';
+  s.value=want;
+  if(s.value!==want)s.value='';
+}
+function stUpdateMapBtn(){
+  var v=document.getElementById('stnSpot').value;
+  document.getElementById('stnMap').style.display=(v!==''&&spots.some(function(s){return String(s.id)===v;}))?'':'none';
+}
+function stNewEntry(type){return{id:'',type:type||'實體',date:'',note:'',photos:[{data:'',caption:''}]};}
+
+function renderStEntries(){
+  var w=document.getElementById('stnEntries');w.innerHTML='';
+  stEntries.forEach(function(en,i){
+    var box=document.createElement('div');box.className='st-ent';
+    // header: type toggle, date, delete
+    var hd=document.createElement('div');hd.className='st-ent-hd';
+    var seg=document.createElement('div');seg.className='st-seg';
+    ['實體','ekitag'].forEach(function(t){
+      var b=document.createElement('span');b.textContent=t;
+      if(en.type===t)b.className='on';
+      b.addEventListener('click',function(){en.type=t;Array.prototype.forEach.call(seg.children,function(x){x.className=x.textContent===t?'on':'';});});
+      seg.appendChild(b);
+    });
+    var dt=document.createElement('input');dt.type='date';dt.value=en.date||'';dt.className='st-date';
+    dt.addEventListener('change',function(){en.date=dt.value;});
+    var del=document.createElement('span');del.className='st-ent-del';del.textContent='🗑️';del.title='刪除這筆印章';
+    del.addEventListener('click',function(){stEntries.splice(i,1);renderStEntries();});
+    hd.appendChild(seg);hd.appendChild(dt);hd.appendChild(del);box.appendChild(hd);
+    // photo rows
+    var ph=document.createElement('div');box.appendChild(ph);
+    function renderPhotos(){
+      ph.innerHTML='';
+      en.photos.forEach(function(p,k){
+        var row=document.createElement('div');row.className='sh-purl';
+        var th=document.createElement('div');th.className='th';
+        function setTh(){
+          th.innerHTML='';var u=(p.data||'').trim();
+          if(u){var im=document.createElement('img');im.src=resolveImgUrl(u);im.onerror=function(){th.textContent='⚠';};th.appendChild(im);}
+          else th.textContent='🖼';
+        }
+        setTh();
+        var inp=document.createElement('input');inp.type='text';inp.placeholder='https://…（可直接貼 Google Drive 連結）';inp.value=p.data||'';
+        inp.addEventListener('input',function(){p.data=inp.value;});
+        inp.addEventListener('change',setTh);
+        inp.addEventListener('paste',function(e){
+          var txt=(e.clipboardData||window.clipboardData).getData('text')||'';
+          var urls=txt.split(/\s+/).filter(function(u){return /^https?:\/\//i.test(u);});
+          if(urls.length<2)return;
+          e.preventDefault();
+          p.data=urls[0];
+          urls.slice(1).forEach(function(u,n){en.photos.splice(k+1+n,0,{data:u,caption:''});});
+          renderPhotos();
+        });
+        var rm=document.createElement('span');rm.className='rm';rm.textContent='✕';rm.title='移除';
+        rm.addEventListener('click',function(){en.photos.splice(k,1);if(!en.photos.length)en.photos.push({data:'',caption:''});renderPhotos();});
+        row.appendChild(th);row.appendChild(inp);row.appendChild(rm);ph.appendChild(row);
+      });
+    }
+    renderPhotos();
+    var add=document.createElement('span');add.className='sh-addurl';add.textContent='＋ 新增照片網址';
+    add.addEventListener('click',function(){
+      en.photos.push({data:'',caption:''});renderPhotos();
+      var ins=ph.querySelectorAll('input');if(ins.length)ins[ins.length-1].focus();
+    });
+    box.appendChild(add);
+    var note=document.createElement('input');note.type='text';note.className='st-note';note.placeholder='備註（例如：改札口旁的蓋章台）';note.value=en.note||'';
+    note.addEventListener('input',function(){en.note=note.value;});
+    box.appendChild(note);
+    w.appendChild(box);
+  });
+  if(!stEntries.length){
+    var em=document.createElement('div');em.className='sh-empty';em.style.padding='8px';em.textContent='尚無印章紀錄，點下方「新增一筆印章」。';w.appendChild(em);
+  }
+}
+
+function openStationEditModal(id,preset){
+  preset=preset||{};
+  stEditId=id||null;
+  var st=id?stGet(id):null;
+  document.getElementById('stnTitle').textContent=st?'編輯駅スタンプ':'新增駅スタンプ';
+  var rs=document.getElementById('stnRegion');
+  rs.innerHTML='<option value="">選擇地區</option>'+REGIONS.map(function(r){return'<option value="'+r.name+'">'+r.name+'</option>';}).join('');
+  var region=st?st.region:(preset.region||'');
+  rs.value=region;
+  stFillPrefs(region,st?st.pref:(preset.pref||''));
+  document.getElementById('stnName').value=st?st.name:(preset.name||'');
+  document.getElementById('stnLine').value=st?(st.line||''):'';
+  var seen={},opts='';
+  stations.forEach(function(s){if(s.line&&!seen[s.line]){seen[s.line]=1;opts+='<option value="'+escH(s.line)+'">';}});
+  document.getElementById('stnLineList').innerHTML=opts;
+  stFillSpotOptions(st?st.spotId:(preset.spotId!=null?preset.spotId:null),stEditId);
+  stUpdateMapBtn();
+  stEntries=st?st.stamps.map(function(x){return{id:x.id,type:x.type,date:x.date||'',note:x.note||'',photos:(x.photos||[]).map(function(p){return{data:p.data,caption:p.caption||''};})};}):[stNewEntry('實體')];
+  stEntries.forEach(function(en){if(!en.photos.length)en.photos.push({data:'',caption:''});});
+  renderStEntries();
+  document.getElementById('stnDel').style.display=st?'':'none';
+  document.getElementById('stationEditModal').classList.add('open');
+  if(!st)setTimeout(function(){document.getElementById('stnName').focus();},60);
+}
+function closeStationEditModal(){document.getElementById('stationEditModal').classList.remove('open');stEditId=null;}
+
+document.getElementById('stnRegion').addEventListener('change',function(){stFillPrefs(this.value,'');});
+document.getElementById('stnName').addEventListener('change',function(){
+  var sel=document.getElementById('stnSpot');if(sel.value!=='')return;
+  var nm=stNormName(this.value);if(!nm)return;
+  var hit=Array.prototype.find.call(sel.options,function(o){return o.value!==''&&stNormName(o.textContent)===nm;});
+  if(hit){sel.value=hit.value;stUpdateMapBtn();}
+});
+document.getElementById('stnSpot').addEventListener('change',function(){
+  stUpdateMapBtn();
+  if(this.value==='')return;
+  var v=this.value,sp=spots.find(function(s){return String(s.id)===v;});if(!sp)return;
+  var nameEl=document.getElementById('stnName');
+  if(!nameEl.value.trim())nameEl.value=sp.name;
+});
+document.getElementById('stnAddEntry').addEventListener('click',function(){
+  var hasP=stEntries.some(function(e){return e.type==='實體';});
+  stEntries.push(stNewEntry(hasP?'ekitag':'實體'));
+  renderStEntries();
+});
+document.getElementById('stnMap').addEventListener('click',function(){
+  var v=document.getElementById('stnSpot').value;if(v==='')return;
+  var id=parseInt(v,10);
+  closeStationEditModal();closeStampModal();
+  shFocusSpot(id);
+});
+document.getElementById('stnX').addEventListener('click',closeStationEditModal);
+document.getElementById('stnCancel').addEventListener('click',closeStationEditModal);
+document.getElementById('stationEditModal').addEventListener('click',function(e){if(e.target===e.currentTarget)closeStationEditModal();});
+
+document.getElementById('stnSave').addEventListener('click',function(){
+  var name=document.getElementById('stnName').value.trim();if(!name){alert('請輸入車站名稱');return;}
+  var region=document.getElementById('stnRegion').value;if(!region){alert('請選擇地區');return;}
+  var pref=document.getElementById('stnPref').value;if(!pref){alert('請選擇'+prefLabel(region));return;}
+  var line=document.getElementById('stnLine').value.trim();
+  var sv=document.getElementById('stnSpot').value,spotId=sv===''?null:parseInt(sv,10);
+  // validate + clean entries (fully empty entries are dropped)
+  var clean=[];
+  for(var i=0;i<stEntries.length;i++){
+    var en=stEntries[i],photos=[];
+    for(var k=0;k<en.photos.length;k++){
+      var u=(en.photos[k].data||'').trim();if(!u)continue;
+      if(!/^https?:\/\//i.test(u)){alert('第 '+(i+1)+' 筆印章的照片網址需以 http:// 或 https:// 開頭');return;}
+      photos.push({data:u,caption:en.photos[k].caption||''});
+    }
+    var note=(en.note||'').trim();
+    if(!en.date&&!note&&!photos.length)continue;
+    clean.push({id:en.id,type:en.type,date:en.date||'',note:note,photos:photos});
+  }
+  clean.forEach(function(x){if(!x.id)x.id='sk'+(nextSkid++);});
+  var st;
+  if(stEditId){
+    st=stGet(stEditId);if(!st)return;
+    st.name=name;st.line=line;st.region=region;st.pref=pref;st.spotId=spotId;st.stamps=clean;
+  }else{
+    st={id:'st'+(nextStid++),name:name,line:line,region:region,pref:pref,spotId:spotId,stamps:clean};
+    stations.push(st);
+  }
+  if(stFilterRegion&&stFilterRegion!==region)stFilterRegion=region;
+  if(stFilterPref&&stFilterPref!==pref)stFilterPref='';
+  saveDB().then(function(){
+    closeStationEditModal();
+    if(document.getElementById('stampBookModal').classList.contains('open')&&sbActiveTab==='sbst')renderStationTab();
+    shRefreshSpotUI();
+  });
+});
+document.getElementById('stnDel').addEventListener('click',function(){
+  var st=stGet(stEditId);if(!st)return;
+  if(!confirm('確定要刪除「'+st.name+'」嗎？'+(st.stamps.length?'\n其中 '+st.stamps.length+' 筆印章紀錄也會一併刪除，無法復原。':'')))return;
+  var id=st.id;
+  stations=stations.filter(function(x){return x.id!==id;});
+  saveDB().then(function(){
+    closeStationEditModal();
+    if(document.getElementById('stampBookModal').classList.contains('open')&&sbActiveTab==='sbst')renderStationTab();
+    shRefreshSpotUI();
+  });
+});
+
+// ── MAP LINK: block in the side panel of 「車站」 spots ──────────────
+function stSpotSectionHTML(spot){
+  if(!stIsStationSpot(spot))return'';
+  var st=stationBySpot(spot.id);
+  if(st){
+    var c=stCounts(st);
+    return'<div class="sh-spot-sec st-spot"><div class="sh-spot-hd"><span class="sh-spot-title">🚉 駅スタンプ</span><button class="pbtn" onclick="APP.openStationForSpot('+spot.id+')">查看</button></div>'+
+      '<div class="sh-spot-bd">'+escH(st.name)+'：實體 '+c.p+' ・ ekitag '+c.e+'</div></div>';
+  }
+  return'<div class="sh-spot-sec st-spot"><div class="sh-spot-hd"><span class="sh-spot-title">🚉 駅スタンプ</span><button class="pbtn" onclick="APP.stCreateFromSpot('+spot.id+')">＋ 建立</button></div>'+
+    '<div class="sh-spot-bd">尚未建立駅スタンプ紀錄。</div></div>';
 }
 
 
@@ -4840,7 +5193,7 @@ var APP={
   },
   exitTL:           function(){actDate='all';actFilt='all';syncCalLatest();updateBadge();renderCal();applyDateMode();},
   tlClick:          function(id){var s=spots.find(function(x){return x.id===id;});if(!s)return;map.flyTo([s.lat,s.lng],15,{duration:.7});setTimeout(function(){if(markers[id])markers[id].openPopup();},750);hlMarker(id);hlSb(id);openPanelSpot(id,actDate);},
-  delSpot:          function(id){var s=spots.find(function(x){return x.id===id;});if(!s||!confirm('確定要刪除「'+s.name+'」嗎？\n此操作無法復原。'))return;spots=spots.filter(function(x){return x.id!==id;});shrines.forEach(function(h){if(h.spotId===id)h.spotId=null;});if(markers[id]){markers[id].remove();delete markers[id];}if(panSid===id)closePanel();if(actFilt!=='all'&&!spots.some(function(x){return x.catId===actFilt;}))actFilt='all';saveDB().then(function(){renderAll();});},
+  delSpot:          function(id){var s=spots.find(function(x){return x.id===id;});if(!s||!confirm('確定要刪除「'+s.name+'」嗎？\n此操作無法復原。'))return;spots=spots.filter(function(x){return x.id!==id;});shrines.forEach(function(h){if(h.spotId===id)h.spotId=null;});stations.forEach(function(h){if(h.spotId===id)h.spotId=null;});if(markers[id]){markers[id].remove();delete markers[id];}if(panSid===id)closePanel();if(actFilt!=='all'&&!spots.some(function(x){return x.catId===actFilt;}))actFilt='all';saveDB().then(function(){renderAll();});},
   openNoteEditor:   openNoteEditor,
   toggleNote:       toggleNote,
   openPhotoView:    openPhotoView,
@@ -4878,6 +5231,13 @@ var APP={
   shEditItem:       function(shId,itId){openShItemModal(shId,itId);},
   shItemView:       function(shId,itId){shItemView(shId,itId);},
   shMap:            function(spotId){shFocusSpot(spotId);},
+  stSetRegion:      function(n){stFilterRegion=n;stFilterPref='';renderStationTab();},
+  stSetPref:        function(p){stFilterPref=p;renderStationTab();},
+  stNew:            function(){openStationEditModal(null,{region:stFilterRegion,pref:stFilterPref});},
+  stEdit:           function(id){openStationEditModal(id);},
+  stView:           function(id){stView(id);},
+  openStationForSpot:function(spotId){var st=stationBySpot(spotId);if(!st)return;sbActiveTab='sbst';stFilterRegion=st.region;stFilterPref='';openStampModal();openStationEditModal(st.id);},
+  stCreateFromSpot: function(spotId){var sp=spots.find(function(x){return x.id===spotId;});if(!sp)return;openStationEditModal(null,{name:sp.name,spotId:sp.id});},
   openShrineForSpot:function(spotId){var sh=shrineBySpot(spotId);if(sh)openShrineModal(sh.id);},
   shCreateFromSpot: function(spotId){var sp=spots.find(function(x){return x.id===spotId;});if(!sp)return;openShrineEditModal(null,{name:sp.name,spotId:sp.id,kind:sp.catId==='c9'?'寺院':'神社'});},
   toggleCatPicker:  function(){toggleCatPicker();},
@@ -4958,7 +5318,7 @@ document.addEventListener('click',function(e){if(!e.target.closest('.gc-stamp-mo
 // ── KEYBOARD ──────────────────────────────────────────────────────
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){
-    closeSpotModal();closeCatModal();closeGcEditModal();closeShItemModal();closeShrineEditModal();closeShrineModal();closeGoshuinModal();closeStampModal();closeNoteModal();closeAchieveModal();closeAchEditModal();closeAddQuestModal();closeEditQuestModal();closeQItemModal();closeJourneyModal();closeJourneyDayModal();
+    closeSpotModal();closeCatModal();closeGcEditModal();closeStationEditModal();closeShItemModal();closeShrineEditModal();closeShrineModal();closeGoshuinModal();closeStampModal();closeNoteModal();closeAchieveModal();closeAchEditModal();closeAddQuestModal();closeEditQuestModal();closeQItemModal();closeJourneyModal();closeJourneyDayModal();
     document.getElementById('lbox').classList.remove('open');document.getElementById('lboxMedia').innerHTML='';
     document.getElementById('photoBack').classList.remove('open');
     document.getElementById('sInner').classList.remove('open');
@@ -4984,7 +5344,7 @@ document.addEventListener('keydown',function(e){
 
 // ── INIT ──────────────────────────────────────────────────────────
 openDB()
-  .then(function(){return Promise.all([dbG('cats'),dbG('spots'),dbG('gcBooks'),dbG('quests'),dbG('certificates'),dbG('journeys'),dbG('steps'),dbG('shrines')]);})
+  .then(function(){return Promise.all([dbG('cats'),dbG('spots'),dbG('gcBooks'),dbG('quests'),dbG('certificates'),dbG('journeys'),dbG('steps'),dbG('shrines'),dbG('stations')]);})
   .then(function(r){
     cats    = r[0]?JSON.parse(r[0]):DEF_CATS;
     // Sync icon, svgKey AND color from DEF_CATS into loaded cats.
@@ -5015,6 +5375,7 @@ openDB()
     steps   = r[6]?JSON.parse(r[6]):{};
     // v1.5: shrines[]. First load after upgrading converts the old 御朱印 book into shrines.
     shrines = r[7]?JSON.parse(r[7]):[];
+    stations = r[8]?JSON.parse(r[8]):[];
     if(!r[7]){
       var _cv=convertGoshuinBookToShrines(gcBooks,shrines,spots);
       gcBooks=_cv.gcBooks;shrines=_cv.shrines;
@@ -5051,6 +5412,7 @@ openDB()
     nextCid=100;
     gcBooks.forEach(function(b){b.stamps.forEach(function(s){var n=+(s.id.replace(/[^0-9]/g,''));if(n>=nextGsid)nextGsid=n+1;});});
     nextGbid=gcBooks.length+10;
+    stations.forEach(function(h){var n=+(String(h.id).replace(/[^0-9]/g,''));if(n>=nextStid)nextStid=n+1;(h.stamps||[]).forEach(function(x){var m=+(String(x.id).replace(/[^0-9]/g,''));if(m>=nextSkid)nextSkid=m+1;});});
     shrines.forEach(function(h){var n=+(String(h.id).replace(/[^0-9]/g,''));if(n>=nextShid)nextShid=n+1;(h.items||[]).forEach(function(x){var m=+(String(x.id).replace(/[^0-9]/g,''));if(m>=nextItid)nextItid=m+1;});});
     syncCalLatest();
     renderAll();
